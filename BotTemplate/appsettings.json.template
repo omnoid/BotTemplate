@@ -1,0 +1,8 @@
+{
+  "Bot": {
+    "Token": ""
+  },
+  "Command": {
+    "CommandPrefix": "§"
+  }
+}
