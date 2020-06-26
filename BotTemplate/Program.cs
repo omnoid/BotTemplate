@@ -33,6 +33,7 @@ namespace BotTemplate
 
 			try
 			{
+				//Starts Program in async context, calling on Program constructor.
 				new Program().MainAsync().GetAwaiter().GetResult();
 			}
 			catch(Exception e)
@@ -47,25 +48,33 @@ namespace BotTemplate
 
 		public Program()
 		{
+			//Reads configuration from appsettings.json
 			_configuration = new ConfigurationBuilder()
 				.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
 				.AddEnvironmentVariables()
 				.Build();
+
+			//Sets up Dependency Injection
 			_services = BuildServiceProvider();
+
 			StartupTime = DateTime.Now;
 			Log.Logger.Information("Program initalized, starting connection with Discord.");
 		}
 
 		public async Task MainAsync()
 		{
+			//Fetches global discord client from dependency injection system (ServiceCollection)
 			var client = _services.GetRequiredService<DiscordSocketClient>();
 			_client = client;
 
+			//Sets up logging of Discord events, and function for when client logs in
 			client.Log += LogAsync;
 			client.Ready += ReadyAsync;
+
 			_services.GetRequiredService<CommandService>().Log += LogAsync;
 
-			await client.LoginAsync(TokenType.Bot, _configuration.GetSection("Omnic:Token").Value);
+			//Logs into Discord as a bot using globale client
+			await client.LoginAsync(TokenType.Bot, _configuration.GetSection("Bot:Token").Value);
 			await client.StartAsync();
 
 			await _services.GetRequiredService<CommandHandler>().InitializeAsync();
@@ -75,14 +84,14 @@ namespace BotTemplate
 
 		private Task LogAsync(LogMessage log)
 		{
-			Console.WriteLine(log.ToString());
+			Log.Logger.Information(log.ToString());
 			return Task.CompletedTask;
 		}
 
 		private Task ReadyAsync()
 		{
 			LastLogin = DateTime.Now;
-			Log.Information("Connected as -> [{CurrentUser}]", _client.CurrentUser);
+			Log.Logger.Information("Connected as -> [{CurrentUser}]", _client.CurrentUser);
 			return Task.CompletedTask;
 		}
 
