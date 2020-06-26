@@ -8,6 +8,8 @@ using BotTemplate.Commands.Modules;
 using BotTemplate.Settings;
 using System;
 using System.Threading.Tasks;
+using Serilog;
+using Serilog.Sinks.SystemConsole.Themes;
 
 namespace BotTemplate
 {
@@ -18,16 +20,28 @@ namespace BotTemplate
 		private readonly IConfiguration _configuration;
 		private readonly IServiceProvider _services;
 		public static DateTime StartupTime { get; private set; }
-		
+		public static DateTime LastLogin { get; private set; }
+
+
+		//Entrypoint
 		static void Main(string[] args)
 		{
+			Log.Logger = new LoggerConfiguration()
+				.WriteTo.Console()
+				.MinimumLevel.Information()
+				.CreateLogger();
+
 			try
 			{
 				new Program().MainAsync().GetAwaiter().GetResult();
 			}
 			catch(Exception e)
 			{
-				Console.WriteLine(e.ToString());
+				Log.Logger.Error("Program exited unexpectedly {Exception}", e);
+			}
+			finally
+			{
+				//flush logger
 			}
 		}
 
@@ -38,6 +52,8 @@ namespace BotTemplate
 				.AddEnvironmentVariables()
 				.Build();
 			_services = BuildServiceProvider();
+			StartupTime = DateTime.Now;
+			Log.Logger.Information("Program initalized, starting connection with Discord.");
 		}
 
 		public async Task MainAsync()
@@ -65,15 +81,14 @@ namespace BotTemplate
 
 		private Task ReadyAsync()
 		{
-			StartupTime = DateTime.Now;
-			Console.WriteLine($"Connected as -> [{_client.CurrentUser}]\n\tCurrent time: {StartupTime.ToShortDateString()}");
+			LastLogin = DateTime.Now;
+			Log.Information("Connected as -> [{CurrentUser}]", _client.CurrentUser);
 			return Task.CompletedTask;
 		}
 
 		private IServiceProvider BuildServiceProvider() => new ServiceCollection()
 			.Configure<CommandSettings>(options => options = _configuration.GetSection(CommandSettings.Command).Get<CommandSettings>())
 			.AddSingleton<DiscordSocketClient>()
-			.AddSingleton<TransformCommands>()
 			.AddSingleton<CommandService>()
 			.AddSingleton<CommandHandler>()
 			.BuildServiceProvider();
